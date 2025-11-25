@@ -1,16 +1,52 @@
-# Parcial — CI/CD con Calidad en Node.js
+# Parcial — CI/CD con calidad (Node.js + fútbol)
+
+Pequeño proyecto educativo para practicar un pipeline de calidad continuo en Node.js sobre un dominio simple: partidos de fútbol y tabla de posiciones. Incluye linting, build con Babel, pruebas con cobertura y un workflow en GitHub Actions que funciona también con `act` (requiere Docker).
+
+## Qué hace el proyecto
+
+- Calcula el resultado de un partido con validaciones de entrada.
+- Actualiza una tabla de posiciones acumulando partidos, puntos, goles y récord.
+- Aplica un umbral de cobertura global del 80% como “quality gate”.
+- Permite simular fallos controlados con `DEMO_FAIL=1` para ensayar el pipeline.
 
 ## Requisitos
 
-- Node.js 18+ y npm.
-- Docker instalado y corriendo.
-- `act` (nektos/act) para ejecutar GitHub Actions localmente.
+- `Node.js 18+` y `npm`.
+- `Docker` en ejecución (necesario para `act`).
+- `act` instalado para ejecutar el workflow localmente.
 
-## Scripts
+## Instalación y scripts
 
-- `npm run lint` — Ejecuta ESLint sobre el repo.
-- `npm run build` — Compila `src` a `dist` con Babel.
-- `npm test` — Ejecuta Jest con cobertura y umbral global (80%).
+- `npm ci` — Instala dependencias del proyecto.
+- `npm run lint` — Ejecuta ESLint sobre `src` y `tests`.
+- `npm run build` — Transpila `src` a `dist` con Babel.
+- `npm test` — Ejecuta Jest con cobertura y aplica el umbral del 80%.
+
+## Uso (API)
+
+```js
+const { getMatchResult, updateStandings } = require('./src/match');
+
+// Resultado del partido
+const r = getMatchResult('River', 'Boca', 2, 1);
+// r => { homeTeam: 'River', awayTeam: 'Boca', homeGoals: 2, awayGoals: 1, winner: 'home' }
+
+// Tabla de posiciones
+const table = {};
+updateStandings(table, r);
+// table.River.points === 3; table.Boca.points === 0
+```
+
+### Detalles de la API
+
+- `getMatchResult(homeTeam, awayTeam, homeGoals, awayGoals)`
+  - Valida equipos como strings no vacíos y goles como enteros ≥ 0.
+  - Devuelve un objeto `{ homeTeam, awayTeam, homeGoals, awayGoals, winner }` donde `winner` es `'home'`, `'away'` o `null` (empate).
+  - Si `DEMO_FAIL=1` y hay empate, fuerza `winner='home'` para demostrar cómo el pipeline detecta errores lógicos.
+- `updateStandings(standings, result)`
+  - Recibe un objeto acumulador `standings` y el `result` anterior.
+  - Crea entradas por equipo si no existen y actualiza: `played`, `points`, `wins`, `draws`, `losses`, `gf`, `ga`.
+  - Devuelve el mismo objeto `standings` mutado.
 
 ## Pipeline en GitHub Actions
 
@@ -19,43 +55,34 @@
 - Pasos: checkout → setup-node → `npm ci` → `npm run lint` → `npm run build` → `npm test`.
 - Artefacto de cobertura: `coverage/lcov.info`.
 - El run falla si:
-  - Linter tiene errores.
-  - Pruebas fallan.
-  - Cobertura global < 80% (configurada en `jest.config.js`).
+  - Hay errores de ESLint.
+  - Las pruebas fallan.
+  - La cobertura global es < 80% (ver `jest.config.js`).
 
-## Ejecutar localmente con `act`
+## Ejecutar el workflow localmente con `act`
 
-1. Instala `act` según tu OS.
-2. Desde la raíz del repo, ejecuta:
-   - `act push -W .github/workflows/ci-quality.yml`
-   - `act pull_request -W .github/workflows/ci-quality.yml`
-3. Si es necesario, especifica imagen base:
-   - `act push -W .github/workflows/ci-quality.yml -P ubuntu-latest=catthehacker/ubuntu:act-latest`
-4. Para simular un run fallido controlado  usa variable de entorno:
-   - `act push -W .github/workflows/ci-quality.yml --env DEMO_FAIL=1`
-   - Falla la etapa de pruebas (empate marcado como victoria local).
+- `act push -W .github/workflows/ci-quality.yml`
+- `act pull_request -W .github/workflows/ci-quality.yml`
+- Si necesitas especificar imagen base:
+  - `act push -W .github/workflows/ci-quality.yml -P ubuntu-latest=catthehacker/ubuntu:act-latest`
+- Para ensayar un fallo controlado (cambia empates a victoria local):
+  - `act push -W .github/workflows/ci-quality.yml --env DEMO_FAIL=1`
 
-## Cobertura y umbral
+## Cobertura
 
-- Umbral global 80% (branches, functions, lines, statements) definido en `jest.config.js`.
-- Reportes generados en `coverage/` (`text`, `lcov`, `json-summary`).
-- Para ver HTML, instala `jest-html-reporters` (opcional) o usa herramientas que consuman `lcov.info`.
+- Umbral global 80% definido en `jest.config.js` para branches, functions, lines y statements.
+- Reportes en `coverage/` (`text`, `lcov`, `json-summary`). El HTML puede abrirse desde `coverage/lcov-report/index.html`.
 
-## Solución de problemas en Windows
+## Estructura del repo
 
-- Si PowerShell bloquea `npm.ps1`, usa:
-  - `& "C:\\Program Files\\nodejs\\npm.cmd" run lint`
-  - `& "C:\\Program Files\\nodejs\\npm.cmd" run build`
-  - `& "C:\\Program Files\\nodejs\\npm.cmd" test`
-
-## Estructura
-
-- Código: `src/` (principal `src/match.js`).
+- Código: `src/match.js`.
 - Pruebas: `tests/match.test.js`.
 - Configuración: `eslint.config.js`, `babel.config.js`, `jest.config.js`.
 - CI/CD: `.github/workflows/ci-quality.yml`.
 
-## Dominio del proyecto
+## Solución de problemas (Windows)
 
-- Enfrentamientos de fútbol.
-- `getMatchResult` y `updateStandings` calculan ganador y actualizan tabla.
+- Si PowerShell bloquea `npm.ps1`, ejecuta con `npm.cmd`:
+  - `& "C:\\Program Files\\nodejs\\npm.cmd" run lint`
+  - `& "C:\\Program Files\\nodejs\\npm.cmd" run build`
+  - `& "C:\\Program Files\\nodejs\\npm.cmd" test`
