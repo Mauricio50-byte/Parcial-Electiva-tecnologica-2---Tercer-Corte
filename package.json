@@ -1,0 +1,23 @@
+{
+  "name": "parcial",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint src tests",
+    "build": "babel src --out-dir dist --copy-files",
+    "test": "jest --coverage --runInBand"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "babel-jest": "^30.2.0",
+    "eslint": "^9.39.1",
+    "jest": "^30.2.0",
+    "@babel/cli": "^7.26.4"
+  }
+}
